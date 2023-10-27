@@ -188,7 +188,6 @@ TEST(BPEModelTest, EncodeAmbiguousTest) {
 
 TEST(BPEModelTest, NotSupportedTest) {
   ModelProto model_proto = MakeBaseModelProto();
-
   const Model model(std::make_unique<const ModelProto>(model_proto));
   EXPECT_EQ(NBestEncodeResult(), model.NBestEncode("test", 10));
 }
@@ -215,7 +214,6 @@ TEST(BPEModelTest, EncodeWithUnusedTest) {
 
   {
     model_proto.mutable_pieces(3)->set_type(ModelProto::SentencePiece::UNUSED);
-
     const Model model(std::make_unique<const ModelProto>(model_proto));
     const auto result = model.Encode("abcd");
     EXPECT_EQ(2, result.size());
@@ -227,7 +225,6 @@ TEST(BPEModelTest, EncodeWithUnusedTest) {
     // The parent rule "abc" is still alive even if the child "ab" is unused.
     model_proto.mutable_pieces(3)->set_type(ModelProto::SentencePiece::UNUSED);
     model_proto.mutable_pieces(5)->set_type(ModelProto::SentencePiece::UNUSED);
-
     const Model model(std::make_unique<const ModelProto>(model_proto));
     const auto result = model.Encode("abcd");
     EXPECT_EQ(2, result.size());
@@ -243,7 +240,6 @@ TEST(BPEModelTest, EncodeWithUnusedTest) {
     model_proto.mutable_pieces(3)->set_type(ModelProto::SentencePiece::UNUSED);
     model_proto.mutable_pieces(4)->set_type(ModelProto::SentencePiece::UNUSED);
     model_proto.mutable_pieces(5)->set_type(ModelProto::SentencePiece::NORMAL);
-
     const Model model(std::make_unique<const ModelProto>(model_proto));
     const auto result = model.Encode("abcd");
     EXPECT_EQ(3, result.size());
@@ -280,7 +276,6 @@ TEST(SampleModelTest, EncodeTest) {
     };
 
     const Model model(std::make_unique<const ModelProto>(model_proto));
-
     const std::vector<double> kAlpha = {0.0, 0.1, 0.5, 0.7, 0.9};
     for (const auto alpha : kAlpha) {
       constexpr int kTrial = 100000;

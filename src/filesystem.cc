@@ -130,6 +130,46 @@ class PosixReadableFile : public ReadableFile {
   }
 };
 
+class PipedReadableFile : public ReadableFile {
+ public:
+  PipedReadableFile(bool is_binary, char delim)
+      : delim_(delim), is_(&std::cin) {
+    if (!*is_)
+      status_ = util::StatusBuilder(util::StatusCode::kNotFound, GTL_LOC)
+                << "\"stdin\": " << util::StrError(errno);
+  }
+
+  ~PipedReadableFile() {
+    if (is_ != &std::cin) delete is_;
+  }
+
+  util::Status status() const { return status_; }
+
+  bool ReadLine(absl::string_view *line) {
+    std::string temp;
+    if (std::getline(*is_, temp, delim_)) {
+      *line = absl::string_view(temp);
+      return true;
+    }
+    return false;
+  }
+
+  bool ReadAll(absl::string_view *line) {
+      LOG(ERROR) << "ReadAll is not supported for stdin.";
+      return false;
+  }
+
+  bool ReadBuffer(std::string *buffer) {
+    LOG(ERROR) << "ReadBuffer is not supported for stdin.";
+    return false;
+  }
+
+ private:
+  char delim_;
+  util::Status status_;
+  std::istream *is_;
+};
+
 class PosixWritableFile : public WritableFile {
  public:
   PosixWritableFile(absl::string_view filename, bool is_binary = false)
@@ -174,7 +214,11 @@ using DefaultWritableFile = PosixWritableFile;
 std::unique_ptr<ReadableFile> NewReadableFile(absl::string_view filename,
                                               bool is_binary,
                                               char delim) {
-  return absl::make_unique<DefaultReadableFile>(filename, is_binary, delim);
+  if (!filename.empty()) {
+    return absl::make_unique<DefaultReadableFile>(filename, is_binary, delim);
+  } else {
+    return absl::make_unique<PipedReadableFile>(is_binary, delim);
+  }
 }
 
 std::unique_ptr<WritableFile> NewWritableFile(absl::string_view filename,
