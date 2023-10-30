@@ -305,6 +305,7 @@ add_executable(spm_normalize spm_normalize_main.cc)
 add_executable(spm_train spm_train_main.cc)
 add_executable(spm_bpe_cache_merge spm_bpe_cache_merge.cc)
 add_executable(spm_export_vocab spm_export_vocab_main.cc)
+add_executable(streaming_spm_encode streaming_spm_encode_main.cc)
 
 target_link_libraries(spm_encode sentencepiece)
 target_link_libraries(spm_decode sentencepiece)
@@ -312,6 +313,8 @@ target_link_libraries(spm_normalize sentencepiece sentencepiece_train)
 target_link_libraries(spm_train sentencepiece sentencepiece_train)
 target_link_libraries(spm_bpe_cache_merge sentencepiece)
 target_link_libraries(spm_export_vocab sentencepiece)
+target_link_libraries(streaming_spm_encode sentencepiece)
+
 
 if (SPM_ENABLE_NFKC_COMPILE)
   add_executable(compile_charsmap compile_charsmap_main.cc)
@@ -320,10 +323,11 @@ endif()
 
 if (NOT SPM_ONLY_LIB)
 list(APPEND SPM_INSTALLTARGETS
-  spm_encode spm_decode spm_normalize spm_train spm_export_vocab spm_bpe_cache_merge)
+  spm_encode spm_decode spm_normalize spm_train spm_export_vocab spm_bpe_cache_merge streaming_spm_encode)
 endif()
 
 if (CMAKE_SYSTEM_NAME STREQUAL "iOS")
+
   install(TARGETS ${SPM_INSTALLTARGETS}
     BUNDLE DESTINATION ${CMAKE_INSTALL_BINDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
