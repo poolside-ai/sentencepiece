@@ -90,7 +90,12 @@ class PosixReadableFile : public ReadableFile {
   
   bool ReadLine(absl::string_view *line) {
     if (mem_ == nullptr) {
-      return static_cast<bool>(std::getline(std::cin, lines_.emplace_back(), delim_));
+      std::string temp;
+      if (std::getline(std::cin, temp, delim_)) {
+        *line = absl::string_view(temp);
+        return true;
+      }
+      return false; 
     }
     size_t size_left = file_size_ - (head_ - mem_);
     if (size_left == 0) {
@@ -122,7 +127,6 @@ class PosixReadableFile : public ReadableFile {
   char *mem_;
   char *head_;
   size_t file_size_;
-  std::vector<std::string> lines_;
 
   void SetErrorStatus(util::StatusCode status, absl::string_view filename) {
     status_ = util::StatusBuilder(status, GTL_LOC)

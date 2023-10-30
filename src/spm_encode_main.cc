@@ -205,10 +205,6 @@ int main(int argc, char *argv[]) {
 
   char delim = absl::GetFlag(FLAGS_new_line_delim);
   for (const auto &filename : rest_args) {
-    if (filename.empty()) {
-      LOG(FATAL) << "Pipe input is not supported. Please use --input to specify the names of the input files";
-      continue;
-    }
     auto input = sentencepiece::filesystem::NewReadableFile(
         filename, delim != '\n', delim);
     CHECK_OK(input->status());
