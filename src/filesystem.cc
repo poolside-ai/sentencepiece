@@ -20,6 +20,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include "common.h"
 #include "filesystem.h"
 #include "absl/memory/memory.h"
 #include "util.h"
@@ -90,12 +91,11 @@ class PosixReadableFile : public ReadableFile {
   
   bool ReadLine(absl::string_view *line) {
     if (mem_ == nullptr) {
-      std::string temp;
-      if (std::getline(std::cin, temp, delim_)) {
-        *line = absl::string_view(temp);
-        return true;
+      const auto worked = static_cast<bool>(std::getline(std::cin, lines_.emplace_back(), delim_));
+      if(worked) {
+          *line = absl::string_view(lines_.back());
       }
-      return false; 
+      return worked;
     }
     size_t size_left = file_size_ - (head_ - mem_);
     if (size_left == 0) {
@@ -127,6 +127,8 @@ class PosixReadableFile : public ReadableFile {
   char *mem_;
   char *head_;
   size_t file_size_;
+  // TODO: This way of allocating memory is very inefficient. A mechanims should be employed to free up memory once the lines are used.
+  std::vector<std::string> lines_;
 
   void SetErrorStatus(util::StatusCode status, absl::string_view filename) {
     status_ = util::StatusBuilder(status, GTL_LOC)
