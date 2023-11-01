@@ -34,7 +34,6 @@ ABSL_FLAG(std::string, model, "", "model file name");
 ABSL_FLAG(
     std::string, output_format, "piece",
     "choose from piece, id, bid, proto, nbest_piece, nbest_id, or nbest_proto");
-ABSL_FLAG(std::string, input, "", "input filename");
 ABSL_FLAG(std::string, output, "", "output filename");
 ABSL_FLAG(std::string, extra_options, "",
           "':' separated encoder extra options, e.g., \"reverse:bos:eos\"");
@@ -80,12 +79,8 @@ int main(int argc, char *argv[]) {
   sentencepiece::ParseCommandLineFlags(argv[0], &argc, &argv, true);
   std::vector<std::string> rest_args;
 
-  if (absl::GetFlag(FLAGS_input).empty()) {
-    for (int i = 1; i < argc; ++i) {
-      rest_args.emplace_back(argv[i]);
-    }
-  } else {
-    rest_args.push_back(absl::GetFlag(FLAGS_input));
+  for (int i = 1; i < argc; ++i) {
+    rest_args.emplace_back(argv[i]);
   }
 
   if (absl::GetFlag(FLAGS_random_seed) != ~0u) {
@@ -304,7 +299,7 @@ int main(int argc, char *argv[]) {
 
   auto _process = isBid ? poolside_process : process;
 
-  auto processChunk = [&pool, &_process, &processed](std::vector<absl::string_view>& chunk) {
+  auto processChunk = [&pool, &_process, &processed](std::vector<std::string>& chunk) {
     pool.Schedule([&_process, &processed, chunk](){
       for (auto &line : chunk) {
         _process(line);
@@ -317,29 +312,18 @@ int main(int argc, char *argv[]) {
     chunk.clear();
   };
 
-  for (const auto &filename : rest_args) {
-    if (filename.empty()) {
-      LOG(FATAL) << "Pipe input is not supported. Please use --input to specify the names of the input files";
-      continue;
-    }
-    auto input = sentencepiece::filesystem::NewReadableFile(
-        filename, delim != '\n', delim);
-    CHECK_OK(input->status());
-    std::vector<absl::string_view> chunk;
-    chunk.reserve(thread_chunk_size);
-    absl::string_view line;
-    while (input->ReadLine(&line)) {
-      chunk.emplace_back(line);
-      if (chunk.size() == thread_chunk_size) {
-        processChunk(chunk);
-      }
-    }
-    if (chunk.size() > 0) {
+  std::vector<std::string> chunk;
+  chunk.reserve(thread_chunk_size);
+  while (std::getline(std::cin, chunk.emplace_back(), delim)) {
+    if (chunk.size() == thread_chunk_size) {
       processChunk(chunk);
     }
-    pool.Wait();
-    LOG(INFO) << "Encoded " << processed.load() << " sentences";
   }
+  if (chunk.size() > 0) {
+    processChunk(chunk);
+  }
+  pool.Wait();
+  LOG(INFO) << "Encoded " << processed.load() << " sentences";
 
   if (absl::GetFlag(FLAGS_output_format) == "bid") {
     size_t count = sentence_sizes.size();
