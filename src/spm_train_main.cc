@@ -183,7 +183,7 @@ int main(int argc, char *argv[]) {
   sentencepiece::NormalizerSpec normalizer_spec;
   NormalizerSpec denormalizer_spec;
 
-  CHECK(!absl::GetFlag(FLAGS_input).empty());
+  CHECK(!absl::GetFlag(FLAGS_input).empty() || !absl::GetFlag(FLAGS_cache_sentence_frequencies_file).empty());
   CHECK(!absl::GetFlag(FLAGS_model_prefix).empty());
 
   if (absl::GetFlag(FLAGS_random_seed) != -1) {

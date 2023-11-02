@@ -401,6 +401,7 @@ util::Status Trainer::Train() {
   std::unique_ptr<filesystem::ReadableFile> cache_file;
 
   if (!trainer_spec_.cache_sentence_frequencies_file().empty()) {
+    CHECK_OR_RETURN(trainer_spec_.input().empty());
     cache_file = filesystem::NewReadableFile(
         trainer_spec_.cache_sentence_frequencies_file(), true, 0);
     if (cache_file->status() == util::OkStatus()) {
