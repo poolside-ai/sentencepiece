@@ -42,10 +42,17 @@ std::optional<MixedTextCodeIterator::BlockType> MixedTextCodeIterator::ReadTextB
 std::optional<MixedTextCodeIterator::BlockType> MixedTextCodeIterator::ReadCodeBlock(absl::string_view* line) {
   assert(*head_ == verbatim_control_char_);
   auto ptr = reinterpret_cast<const char *>(memchr(head_, code_block_end_, tail_ - head_));
-  assert((void("Code block does not end with code block end character"), ptr != nullptr));
-  *line = absl::string_view(head_, ptr - head_);
-  head_ = ptr + 1;
-  in_text_ = true;
+  // Handle the case we've read up to the middle of a valid document.
+  if(ptr == nullptr) {
+    *line = absl::string_view(head_, tail_ - head_);
+    head_ = tail_;
+    in_text_ = true;
+  } else {
+    *line = absl::string_view(head_, ptr - head_);
+    head_ = ptr + 1;
+    in_text_ = true;
+  }
+  
   return line->size() > 1 ? std::make_optional(BlockType::Code) : std::nullopt; // skip x01
 }
 

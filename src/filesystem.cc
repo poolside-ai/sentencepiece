@@ -102,11 +102,14 @@ class PosixReadableFile : public ReadableFile {
      head_ += buffer->size();
      return true;
   }
+
+  bool IsAtEnd() const { return (file_size_ - (head_ - mem_)) == 0; }
   
   bool ReadLine(absl::string_view *line) {
     size_t size_left = file_size_ - (head_ - mem_);
+   
     if (size_left == 0) {
-      if (stdin_) {
+      if (stdin_) {        
         if(counter_ != 0) {
           std::unique_lock<std::mutex> lock(mutex_);
           cond_var_.wait(lock, [&]() { return counter_ == 0; });
@@ -154,7 +157,7 @@ class PosixReadableFile : public ReadableFile {
     return true;
   }
 
-  void mark_as_free() {
+  void MarkAsFree() {
     assert(counter_ != 0);
     if(counter_.fetch_sub(1) == 1) {
       cond_var_.notify_one();

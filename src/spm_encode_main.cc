@@ -272,7 +272,7 @@ int main(int argc, char *argv[]) {
     while (blocks_iterator.HasNext()) {
       auto r = blocks_iterator.Next(&block);
       if (!r.has_value()) {
-        // Line ends with an emtpy document.
+        // Line ends with an empty document.
         break;
       }
       switch(*r) {
@@ -310,6 +310,7 @@ int main(int argc, char *argv[]) {
     pool.Schedule([&_process, &processed, chunk, &input](){
       for (auto &line : chunk) {
         _process(line);
+        input->MarkAsFree();
       }
 
       int64_t prev = processed.fetch_add(chunk.size()) + chunk.size();
@@ -317,7 +318,7 @@ int main(int argc, char *argv[]) {
         LOG(INFO) << "Encoded " << prev << " sentences";
       }
 
-      input->mark_as_free();      
+
     });
     chunk.clear();
   };
@@ -329,11 +330,28 @@ int main(int argc, char *argv[]) {
     std::vector<absl::string_view> chunk;
     chunk.reserve(thread_chunk_size);
     absl::string_view line;
-  
+
     while (input->ReadLine(&line)) {
       chunk.emplace_back(line);
       if (chunk.size() == thread_chunk_size) {
         processChunk(chunk, input);
+      }
+
+      // If at the end, then we might have encountered an unfinished document.
+      // To be certain we aren't truncating, we wait for all other documents to be
+      // finished and then iterate until we've reached a termination point.
+      if(input->IsAtEnd()) {
+        pool.Wait();
+        processChunk(chunk, input);
+        pool.Wait();
+        do {
+          if(!input->ReadLine(&line)) {           
+            break;
+          }
+          chunk.emplace_back(line);
+          processChunk(chunk, input);
+          pool.Wait();
+        } while(input->IsAtEnd());
       }
     }
     if (chunk.size() > 0) {

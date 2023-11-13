@@ -43,7 +43,8 @@ class ReadableFile {
   virtual bool ReadBuffer(std::string *buffer) = 0;
   virtual bool ReadLine(absl::string_view *line) = 0;
 
-  virtual void mark_as_free() = 0;
+  virtual void MarkAsFree() = 0;
+  virtual bool IsAtEnd() const = 0;
   virtual bool ReadAll(absl::string_view *line) = 0;
 };
 
