@@ -340,7 +340,7 @@ int main(int argc, char *argv[]) {
       // If at the end, then we might have encountered an unfinished document.
       // To be certain we aren't truncating, we wait for all other documents to be
       // finished and then iterate until we've reached a termination point.
-      if(input->IsAtEnd()) {
+      if(input->IsAtEnd() && !chunk.empty()) {
         pool.Wait();
         processChunk(chunk, input);
         pool.Wait();
