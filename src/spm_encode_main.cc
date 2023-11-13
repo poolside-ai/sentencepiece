@@ -345,6 +345,8 @@ int main(int argc, char *argv[]) {
   }
 
   if (absl::GetFlag(FLAGS_output_format) == "bid") {
+    // We need to lock on a read, since sentences_size can be written to by other threads.
+    std::lock_guard<std::mutex> lock(sync);
     size_t count = sentence_sizes.size();
     output->Write(absl::string_view(reinterpret_cast<char *>(sentence_sizes.data()),
                   sizeof(sentence_sizes[0]) * sentence_sizes.size()));
