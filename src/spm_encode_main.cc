@@ -307,7 +307,7 @@ int main(int argc, char *argv[]) {
   auto processChunk = [&pool, &_process, &processed](std::vector<absl::string_view>& chunk,
                                                      std::unique_ptr<sentencepiece::filesystem::ReadableFile>& input
                                                      ) {
-    pool.Schedule([&_process, &processed, chunk](){
+    pool.Schedule([&_process, &processed, chunk, &input](){
       for (auto &line : chunk) {
         _process(line);
       }
