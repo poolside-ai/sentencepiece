@@ -304,20 +304,20 @@ int main(int argc, char *argv[]) {
 
   auto _process = isBid ? poolside_process : process;
 
-  auto processChunk = [&pool, &_process, &processed](std::vector<sentencepiece::filesystem::ps_string>& chunk) {
+  auto processChunk = [&pool, &_process, &processed](std::vector<absl::string_view>& chunk,
+                                                     std::unique_ptr<sentencepiece::filesystem::ReadableFile>& input
+                                                     ) {
     pool.Schedule([&_process, &processed, chunk](){
       for (auto &line : chunk) {
-        if (auto sv = std::get_if<absl::string_view>(&line); sv != nullptr) {
-           _process(*sv);
-        } else {
-          auto& data = std::get<std::string>(line);
-          _process(data);
-        }
+        _process(line);
       }
+
       int64_t prev = processed.fetch_add(chunk.size()) + chunk.size();
       if ((prev / thread_chunk_size) % 100 == 0) {
         LOG(INFO) << "Encoded " << prev << " sentences";
       }
+
+      input->mark_as_free();      
     });
     chunk.clear();
   };
@@ -326,18 +326,20 @@ int main(int argc, char *argv[]) {
     auto input = sentencepiece::filesystem::NewReadableFile(
         filename, delim != '\n', delim);
     CHECK_OK(input->status());
-    std::vector<sentencepiece::filesystem::ps_string> chunk;
+    std::vector<absl::string_view> chunk;
     chunk.reserve(thread_chunk_size);
-    sentencepiece::filesystem::ps_string line;
-    while (input->ReadLineStdin(&line)) {
+    absl::string_view line;
+  
+    while (input->ReadLine(&line)) {
       chunk.emplace_back(line);
       if (chunk.size() == thread_chunk_size) {
-        processChunk(chunk);
+        processChunk(chunk, input);
       }
     }
     if (chunk.size() > 0) {
-      processChunk(chunk);
+      processChunk(chunk, input);
     }
+    
     pool.Wait();
     LOG(INFO) << "Encoded " << processed.load() << " sentences";
   }

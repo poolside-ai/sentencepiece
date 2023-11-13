@@ -19,10 +19,14 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <cassert>
 
 #include "filesystem.h"
 #include "absl/memory/memory.h"
 #include "util.h"
+#include <atomic>
+#include <mutex>
+#include <condition_variable>
 
 #if defined(OS_WIN) && defined(UNICODE) && defined(_UNICODE)
 #define WPATH(path) (::sentencepiece::win32::Utf8ToWide(path).c_str())
@@ -38,7 +42,7 @@ namespace filesystem {
 class PosixReadableFile : public ReadableFile {
  public:
   PosixReadableFile(absl::string_view filename, bool is_binary = false, char delim = '\n')
-      : delim_(delim), mem_(nullptr), head_(nullptr), stdin_(filename.empty()) {
+    : delim_(delim), mem_(nullptr), head_(nullptr), stdin_(filename.empty()), counter_{} {
     if (!stdin_) {
       int fd = open(filename.data(), O_RDONLY);
       if (fd < 0) {
@@ -88,6 +92,7 @@ class PosixReadableFile : public ReadableFile {
        }
        return true;
      }
+     
      size_t size_left = file_size_ - (head_ - mem_);
      if (size_left < buffer->size()) {
        SetErrorStatus(util::StatusCode::kOutOfRange, "N/A");
@@ -102,6 +107,11 @@ class PosixReadableFile : public ReadableFile {
     size_t size_left = file_size_ - (head_ - mem_);
     if (size_left == 0) {
       if (stdin_) {
+        if(counter_ != 0) {
+          std::unique_lock<std::mutex> lock(mutex_);
+          cond_var_.wait(lock, [&]() { return counter_ == 0; });
+        }
+        
         auto bytes_read = read(STDIN_FILENO, mem_, STDIN_BLOCK_SIZE);
         if (bytes_read == -1) {
           // Error happened when reading from stdin
@@ -119,6 +129,11 @@ class PosixReadableFile : public ReadableFile {
         return false;
       }
     }
+
+    if(stdin_) {
+      ++counter;
+    }
+    
     auto ptr = reinterpret_cast<char *>(memchr(head_, delim_, size_left));
     if (ptr == nullptr) {
       *line = absl::string_view(head_, size_left);
@@ -129,31 +144,6 @@ class PosixReadableFile : public ReadableFile {
     }
     return true;
   }
-
-  bool ReadLineStdin(ps_string *line) {
-    if (stdin_) {
-      std::string tmp;
-      auto worked = static_cast<bool>(std::getline(std::cin, tmp, delim_));
-      if (worked) {
-        *line = tmp;
-      }
-      return worked;
-    }
-    size_t size_left = file_size_ - (head_ - mem_);
-    if (size_left == 0) {
-      return false;
-    }
-    auto ptr = reinterpret_cast<char *>(memchr(head_, delim_, size_left));
-    if (ptr == nullptr) {
-      *line = absl::string_view(head_, size_left);
-      head_ = mem_ + file_size_;
-    } else {
-      *line = absl::string_view(head_, ptr - head_);
-      head_ = ptr + 1;
-    }
-    return true;
-  }
-
 
   bool ReadAll(absl::string_view *line) {
     if (mem_ == nullptr) {
@@ -164,6 +154,13 @@ class PosixReadableFile : public ReadableFile {
     return true;
   }
 
+  void mark_as_free() {
+    assert(counter_ != 0);
+    if(counter_.fetch_sub(1) == 1) {
+      cond_var_.notify_one();
+    }
+  }
+
  private:
   char delim_;
   util::Status status_;
@@ -171,7 +168,10 @@ class PosixReadableFile : public ReadableFile {
   char *head_;
   size_t file_size_;
   bool stdin_;
-
+  std::atomic<unsigned> counter_;
+  std::condition_variable cond_var_;
+  std::mutex mutex_;
+  
   void SetErrorStatus(util::StatusCode status, absl::string_view filename) {
     status_ = util::StatusBuilder(status, GTL_LOC)
               << "\"" << filename.data() << "\": " << util::StrError(errno);
