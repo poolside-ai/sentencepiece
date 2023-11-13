@@ -131,7 +131,7 @@ class PosixReadableFile : public ReadableFile {
     }
 
     if(stdin_) {
-      ++counter;
+      ++counter_;
     }
     
     auto ptr = reinterpret_cast<char *>(memchr(head_, delim_, size_left));
@@ -157,7 +157,6 @@ class PosixReadableFile : public ReadableFile {
   void mark_as_free() {
     assert(counter_ != 0);
     if(counter_.fetch_sub(1) == 1) {
-      std::unique_lock<std::mutex> lock(mutex_);
       cond_var_.notify_one();
     }
   }
