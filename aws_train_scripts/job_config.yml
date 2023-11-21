@@ -1,0 +1,5 @@
+slaves:
+  - bpe-train2
+files:
+  - s3://spm-train/docs-train-20231115-22/
+  - s3://spm-train/git-train-20231115-08/
