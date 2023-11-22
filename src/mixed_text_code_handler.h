@@ -13,7 +13,8 @@ public:
   enum class BlockType {
     Text,
     Code,
-    CodeHeader
+    CodeHeader,
+    Error
   };
 
 protected:
