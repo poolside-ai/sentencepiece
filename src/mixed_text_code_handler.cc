@@ -1,6 +1,5 @@
 #include "mixed_text_code_handler.h"
 #include <fstream>
-#include <mutex>
 
 namespace sentencepiece {
 
@@ -92,19 +91,25 @@ code_meta_block_end_(code_meta_block_end)
 {
 }
 
-std::mutex _mutex;
+int MixedTextCodeIterator::_total_files = 0;
+int MixedTextCodeIterator::_total_error_files = 0;
+std::mutex MixedTextCodeIterator::_mutex_error;
 
 std::optional<MixedTextCodeIterator::BlockType> MixedTextCodeIterator::Next(absl::string_view* line) {
   while (HasNext()) {
     // Skips empty blocks
     if (auto r = TryReadNext(line); r.has_value()) {
       if (r.value() == BlockType::Error) {
-        std::lock_guard<std::mutex> _lock(_mutex);
+        std::lock_guard<std::mutex> _lock(_mutex_error);
         // Append the content of line to a local file
         std::ofstream ofs("mixed_text_code_handler_error.txt", std::ios_base::app);
         ofs << *line << std::endl;
         ofs.close();
+        _total_error_files++;
+        LOG(WARNING) << "Total error files: " << _total_error_files << " out of " << _total_files << " files";
         return std::nullopt;
+      } else {
+        _total_files++;
       }
       return r;
     }

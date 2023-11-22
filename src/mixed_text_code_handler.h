@@ -3,6 +3,7 @@
 
 #include <cassert>
 #include <optional>
+#include <mutex>
 #include "common.h"
 
 namespace sentencepiece {
@@ -26,6 +27,10 @@ protected:
   const int32 code_block_end_;
   const int32 code_meta_block_begin_;
   const int32 code_meta_block_end_;
+
+  static int _total_files;
+  static int _total_error_files;
+  static std::mutex _mutex_error;
 
   bool HasCodeHeader() const;
 
