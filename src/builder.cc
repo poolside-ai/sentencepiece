@@ -360,9 +360,6 @@ util::Status Builder::BuildNFKCCodeMap(CharsMap *chars_map) {
   ApplyCommonNmtNFKCMap(&nfkc_map);
 
   nfkc_map[{0x000D}] = {};      // delete \r CARRIAGE RETURN
-  nfkc_map[{0xB2}] = {0x5E32};  // ² -> ^2
-  nfkc_map[{0xB3}] = {0x5E33};  // ³ -> ^3
-  nfkc_map[{0xB9}] = {0x5E31};  // ¹ -> ^1
   nfkc_map.erase({0xBA});       // leave º as-is
 
   RETURN_IF_ERROR(RemoveRedundantMap(&nfkc_map));
