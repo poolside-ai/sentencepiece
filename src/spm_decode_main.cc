@@ -28,10 +28,21 @@
 ABSL_FLAG(std::string, model, "", "model file name");
 ABSL_FLAG(std::string, input, "", "input filename");
 ABSL_FLAG(std::string, output, "", "output filename");
-ABSL_FLAG(std::string, input_format, "piece", "choose from piece or id");
+ABSL_FLAG(std::string, input_format, "piece",
+          "choose from piece, id, poolside or poolside_no_toc");
 ABSL_FLAG(std::string, output_format, "string", "choose from string or proto");
 ABSL_FLAG(std::string, extra_options, "",
           "':' separated encoder extra options, e.g., \"reverse:bos:eos\"");
+
+std::vector<int> read_uint32(absl::string_view binary_data) {
+  std::vector<int> result;
+  for (size_t i = 0; i < binary_data.size(); i += sizeof(uint32_t)) {
+    uint32_t value =
+        *reinterpret_cast<const uint32_t *>(binary_data.data() + i);
+    result.push_back(value);
+  }
+  return result;
+}
 
 int main(int argc, char *argv[]) {
   sentencepiece::ScopedResourceDestructor cleaner;
@@ -101,6 +112,31 @@ int main(int argc, char *argv[]) {
       LOG(FATAL) << "Unknown output format: "
                  << absl::GetFlag(FLAGS_output_format);
     }
+  } else if (absl::GetFlag(FLAGS_input_format) == "poolside" ||
+             absl::GetFlag(FLAGS_input_format) == "poolside_no_toc") {
+    for (const auto &filename : rest_args) {
+      auto input = sentencepiece::filesystem::NewReadableFile(filename, false);
+      CHECK_OK(input->status());
+      input->ReadAll(&line);
+      {
+        auto tokens = read_uint32(line);
+        if (absl::GetFlag(FLAGS_input_format) == "poolside") {
+          // the last 8 bytes of the file contain encode the number of documents
+          // encoded as a little endian uint64_t which means the last 2 uint32_t
+          // of the tokens array contain the length;
+          uint64_t num_docs = (uint64_t)tokens.back() << 32;
+          tokens.pop_back();
+          num_docs |= tokens.back();
+          // the trailier of the file contains the length of each document
+          // encoded as an uint32_t
+          tokens.resize(tokens.size() - num_docs);
+        }
+
+        CHECK_OK(sp.Decode(tokens, &detok));
+        output->Write(detok);
+      }
+    }
+    return 0;
   } else {
     LOG(FATAL) << "Unknown input format: " << absl::GetFlag(FLAGS_input_format);
   }
