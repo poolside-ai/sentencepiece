@@ -2,6 +2,7 @@ name: Build and Publish Wheels
 
 on:
   workflow_dispatch:
+
   
 env:
   DOMAIN: poolside
@@ -65,8 +66,8 @@ jobs:
         working-directory: ${{github.workspace}}/python
         run: python -m cibuildwheel --output-dir ${{env.WHEEL_DST}}
         env:
-          CIBW_BUILD: "cp311-* cp312-*"
-          CIBW_ARCHS_LINUX: auto aarch64
+          CIBW_BUILD: "cp310-* cp311-* cp312-* cp313-*"
+          CIBW_ARCHS_LINUX: auto x86_64 aarch64
           CIBW_ARCHS_MACOS: x86_64 universal2 arm64
           CIBW_ARCHS_WINDOWS: auto ARM64
           CIBW_SKIP: "pp* *-musllinux_* *i686*"
@@ -88,4 +89,4 @@ jobs:
       - name: Publish
         run: |
           aws codeartifact login --tool twine --domain ${{env.DOMAIN}} --repository ${{ env.REPOSITORY }}
-          twine upload --verbose --repository codeartifact ${{env.WHEEL_DST}}/*
+          twine upload --skip-existing --verbose --repository codeartifact ${{env.WHEEL_DST}}/*
