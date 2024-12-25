@@ -6,7 +6,7 @@ on:
   
 env:
   DOMAIN: poolside
-  REPOSITORY: poolside-dagster
+  REPOSITORY: poolside-packages-python
   WHEEL_DST: /tmp/sp_wheelhouse
 
 jobs:
